@@ -1,5 +1,6 @@
-import axios, { AxiosError } from 'axios';
+import axios, { AxiosError, HeadersDefaults, AxiosRequestHeaders, AxiosInstance } from 'axios';
 import { setCookie, parseCookies } from 'nookies';
+import { signOut } from '../contexts/AuthContext';
 
 type FailedRequest = {
   onSuccess: (updatedAccessToken: string) => void;
@@ -45,17 +46,7 @@ api.interceptors.response.use(
 
           api.post<Authentication>('/refresh', { refreshToken })
             .then(response => {
-              setCookie(undefined, ACCESS_TOKEN_KEY, response.data.token, {
-                path: '/',
-                maxAge: 30 * 24 * 60 * 60, // 👈 30 days
-              });
-
-              setCookie(undefined, REFRESH_TOKEN_KEY, response.data.refreshToken, {
-                path: '/',
-                maxAge: 30 * 24 * 60 * 60, // 👈 30 days
-              });
-
-              api.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
+              setAuthCookies(api, response.data);
 
               failedRequestsQueue.forEach(request => {
                 request.onSuccess(response.data.token);
@@ -92,10 +83,25 @@ api.interceptors.response.use(
           });
         });
       } else {
-        // Deslogar o usuário
+        signOut();
       }
+
+      return Promise.reject(error);
     }
-
-
   }
 );
+
+export function setAuthCookies(instance: AxiosInstance, data: Authentication) {
+  setCookie(undefined, ACCESS_TOKEN_KEY, data.token, {
+    path: '/',
+    maxAge: 30 * 24 * 60 * 60, // 👈 30 days
+  });
+
+  setCookie(undefined, REFRESH_TOKEN_KEY, data.refreshToken, {
+    path: '/',
+    maxAge: 30 * 24 * 60 * 60, // 👈 30 days
+  });
+
+  (api.defaults.headers as HeadersDefaults & AxiosRequestHeaders)['Authorization'] = `Bearer ${data.token}`;
+
+}
