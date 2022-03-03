@@ -6,6 +6,7 @@ import {
   api,
   ACCESS_TOKEN_KEY,
   REFRESH_TOKEN_KEY,
+  Authentication,
 } from '../services/api';
 
 type Credentials = {
@@ -26,13 +27,6 @@ type AuthContextData = {
 }
 
 const AuthContext = createContext({} as AuthContextData);
-
-type Authentication = {
-  token: string;
-  refreshToken: string;
-  permissions: string[];
-  roles: string[];
-}
 
 type Props = {
   children: ReactNode;
