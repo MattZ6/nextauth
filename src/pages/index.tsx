@@ -1,6 +1,8 @@
+import { GetServerSideProps } from 'next';
 import { FormEvent, useState } from 'react';
 
 import { useAuth } from '../contexts/AuthContext';
+import { getCookies } from '../services/api';
 
 import styles from '../styles/Home.module.css'
 
@@ -35,4 +37,21 @@ export default function HomePage() {
       <button type="submit">Submit</button>
     </form>
   );
+}
+
+export const getServerSideProps: GetServerSideProps = async (ctx) => {
+  const cookies = getCookies(ctx);
+
+  if (cookies.token) {
+    return {
+      redirect: {
+        destination: '/dashboard',
+        permanent: false,
+      }
+    }
+  }
+
+  return {
+    props: {}
+  }
 }

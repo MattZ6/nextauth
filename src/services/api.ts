@@ -1,4 +1,5 @@
 import axios, { AxiosError, HeadersDefaults, AxiosRequestHeaders, AxiosInstance } from 'axios';
+import { NextApiRequest, NextPageContext } from 'next';
 import { setCookie, parseCookies, destroyCookie } from 'nookies';
 
 import { signOut } from '../contexts/AuthContext';
@@ -81,19 +82,26 @@ api.interceptors.response.use(
       } else {
         signOut();
       }
-
-      return Promise.reject(error);
     }
+
+    return Promise.reject(error);
   }
 );
 
-export function clearCookies() {
-  destroyCookie(undefined, ACCESS_TOKEN_KEY);
-  destroyCookie(undefined, REFRESH_TOKEN_KEY);
+type NextContext = any;
+
+export function clearCookies(context?: NextContext) {
+  destroyCookie(context, ACCESS_TOKEN_KEY);
+  destroyCookie(context, REFRESH_TOKEN_KEY);
 }
 
-export function getCookies() {
-  const cookies = parseCookies();
+type Cookies = {
+  token?: string;
+  refreshToken?: string;
+}
+
+export function getCookies(context?: NextContext): Cookies {
+  const cookies = parseCookies(context);
 
   const token = cookies[ACCESS_TOKEN_KEY] ?? undefined;
   const refreshToken = cookies[REFRESH_TOKEN_KEY] ?? undefined;
@@ -104,13 +112,13 @@ export function getCookies() {
   }
 }
 
-export function setAuthCookies(instance: AxiosInstance, data: RefreshTokenService.Authentication) {
-  setCookie(undefined, ACCESS_TOKEN_KEY, data.token, {
+export function setAuthCookies(instance: AxiosInstance, data: RefreshTokenService.Authentication, context?: NextContext) {
+  setCookie(context, ACCESS_TOKEN_KEY, data.token, {
     path: '/',
     maxAge: 30 * 24 * 60 * 60, // 👈 30 days
   });
 
-  setCookie(undefined, REFRESH_TOKEN_KEY, data.refreshToken, {
+  setCookie(context, REFRESH_TOKEN_KEY, data.refreshToken, {
     path: '/',
     maxAge: 30 * 24 * 60 * 60, // 👈 30 days
   });
