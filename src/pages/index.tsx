@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { getCookies } from '../services/api';
 
 import styles from '../styles/Home.module.css'
+import { withSSTGuest } from '../utils/withSSRGuest';
 
 export default function HomePage() {
   const { signIn } = useAuth();
@@ -39,19 +40,8 @@ export default function HomePage() {
   );
 }
 
-export const getServerSideProps: GetServerSideProps = async (ctx) => {
-  const cookies = getCookies(ctx);
-
-  if (cookies.token) {
-    return {
-      redirect: {
-        destination: '/dashboard',
-        permanent: false,
-      }
-    }
-  }
-
+export const getServerSideProps = withSSTGuest(async () => {
   return {
-    props: {}
+    props: { },
   }
-}
+});
