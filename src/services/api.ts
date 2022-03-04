@@ -1,6 +1,9 @@
 import axios, { AxiosError, HeadersDefaults, AxiosRequestHeaders, AxiosInstance } from 'axios';
-import { setCookie, parseCookies } from 'nookies';
+import { setCookie, parseCookies, destroyCookie } from 'nookies';
+
 import { signOut } from '../contexts/AuthContext';
+
+import { RefreshTokenService } from './user/authentication';
 
 type FailedRequest = {
   onSuccess: (updatedAccessToken: string) => void;
@@ -21,13 +24,6 @@ export const api = axios.create({
   }
 });
 
-export type Authentication = {
-  token: string;
-  refreshToken: string;
-  permissions: string[];
-  roles: string[];
-}
-
 api.interceptors.response.use(
   response => {
     return response;
@@ -44,7 +40,7 @@ api.interceptors.response.use(
         if (!isRefreshing) {
           isRefreshing = true;
 
-          api.post<Authentication>('/refresh', { refreshToken })
+          RefreshTokenService.refreshToken({ refreshToken })
             .then(response => {
               setAuthCookies(api, response.data);
 
@@ -91,7 +87,24 @@ api.interceptors.response.use(
   }
 );
 
-export function setAuthCookies(instance: AxiosInstance, data: Authentication) {
+export function clearCookies() {
+  destroyCookie(undefined, ACCESS_TOKEN_KEY);
+  destroyCookie(undefined, REFRESH_TOKEN_KEY);
+}
+
+export function getCookies() {
+  const cookies = parseCookies();
+
+  const token = cookies[ACCESS_TOKEN_KEY] ?? undefined;
+  const refreshToken = cookies[REFRESH_TOKEN_KEY] ?? undefined;
+
+  return {
+    token,
+    refreshToken,
+  }
+}
+
+export function setAuthCookies(instance: AxiosInstance, data: RefreshTokenService.Authentication) {
   setCookie(undefined, ACCESS_TOKEN_KEY, data.token, {
     path: '/',
     maxAge: 30 * 24 * 60 * 60, // 👈 30 days
@@ -102,6 +115,6 @@ export function setAuthCookies(instance: AxiosInstance, data: Authentication) {
     maxAge: 30 * 24 * 60 * 60, // 👈 30 days
   });
 
-  (api.defaults.headers as HeadersDefaults & AxiosRequestHeaders)['Authorization'] = `Bearer ${data.token}`;
+  (instance.defaults.headers as HeadersDefaults & AxiosRequestHeaders)['Authorization'] = `Bearer ${data.token}`;
 
 }

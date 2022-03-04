@@ -2,13 +2,13 @@ import { useEffect } from 'react';
 
 import { useAuth } from '../contexts/AuthContext'
 
-import { api } from '../services/api';
+import { GetProfileService } from '../services/user';
 
 export default function DashboardPage() {
   const { user } = useAuth();
 
   useEffect(() => {
-    api.get('/me')
+    GetProfileService.getProfile()
       .then(response => {
         console.log(response);
       })

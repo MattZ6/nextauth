@@ -1,30 +1,19 @@
 import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 import Router from 'next/router';
-import {  parseCookies, destroyCookie } from 'nookies';
+
+import { SignInService, GetProfileService } from '../services/user';
 
 import {
   api,
-  ACCESS_TOKEN_KEY,
-  REFRESH_TOKEN_KEY,
-  Authentication,
   setAuthCookies,
+  clearCookies,
+  getCookies,
 } from '../services/api';
-
-type Credentials = {
-  email: string;
-  password: string;
-}
-
-type UserAuthentication = {
-  email: string;
-  permissions: string[];
-  roles: string[];
-}
 
 type AuthContextData = {
   isAuthenticated: boolean;
-  user?: UserAuthentication;
-  signIn: (data: Credentials) => Promise<void>;
+  user?: GetProfileService.User;
+  signIn: (data: SignInService.Request) => Promise<void>;
 }
 
 const AuthContext = createContext({} as AuthContextData);
@@ -34,26 +23,23 @@ type Props = {
 }
 
 export function signOut() {
-  destroyCookie(undefined, ACCESS_TOKEN_KEY);
-  destroyCookie(undefined, REFRESH_TOKEN_KEY);
+  clearCookies();
 
   Router.replace('/');
 }
 
 export function AuthProvider({ children }: Props) {
-  const [user, setUser] = useState<UserAuthentication | undefined>();
+  const [user, setUser] = useState<GetProfileService.User | undefined>();
   const isAuthenticated = !!user;
 
   useEffect(() => {
-    const cookies = parseCookies();
-
-    const token = cookies[ACCESS_TOKEN_KEY];
+    const { token } = getCookies();
 
     if (!token) {
       return;
     }
 
-    api.get<UserAuthentication>('/me')
+    GetProfileService.getProfile()
       .then(response => {
         const { email, permissions, roles } = response.data;
 
@@ -68,9 +54,9 @@ export function AuthProvider({ children }: Props) {
       });
   }, []);
 
-  async function signIn(credentials: Credentials) {
+  async function signIn(credentials: SignInService.Request) {
     try {
-      const { data } = await api.post<Authentication>('/sessions', credentials);
+      const { data } = await SignInService.signIn(credentials);
 
       setAuthCookies(api, data);
 
