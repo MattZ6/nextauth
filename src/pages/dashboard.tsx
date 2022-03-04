@@ -2,6 +2,8 @@ import { useEffect } from 'react';
 
 import { useAuth } from '../contexts/AuthContext'
 
+import { withSSTAuth } from '../utils/withSSRAuth';
+
 import { GetProfileService } from '../services/user';
 
 export default function DashboardPage() {
@@ -24,3 +26,9 @@ export default function DashboardPage() {
     </>
   )
 }
+
+export const getServerSideProps = withSSTAuth(async () => {
+  return {
+    props: { },
+  }
+});
