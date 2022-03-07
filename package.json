@@ -1,5 +1,6 @@
 {
   "name": "nextauth",
+  "description": "Fluxo de autenticação e controle de acesso utilizando NextJS, construído na trila de ReactJS do bootcamp Ignite da Rocketseat",
   "version": "1.0.0",
   "private": true,
   "author": {
