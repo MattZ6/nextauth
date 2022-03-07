@@ -7,6 +7,8 @@
     "email": "matt_z6@hotmail.com",
     "url": "https://github.com/mattz6"
   },
+  "repository": "https://github.com/mattz6/nextauth",
+  "bugs": "https://github.com/mattz6/nextauth/issues",
   "license": "MIT",
   "scripts": {
     "dev": "next dev",
