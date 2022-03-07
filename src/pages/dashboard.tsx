@@ -1,22 +1,16 @@
 import { useEffect } from 'react';
 
 import { useAuth } from '../contexts/AuthContext'
+import { setupApiClient } from '../services/api';
+import { GetProfileService } from '../services/user';
 
 import { withSSTAuth } from '../utils/withSSRAuth';
-
-import { GetProfileService } from '../services/user';
 
 export default function DashboardPage() {
   const { user } = useAuth();
 
   useEffect(() => {
-    GetProfileService.getProfile()
-      .then(response => {
-        console.log(response);
-      })
-      .catch(error => {
-        console.log(error);
-      })
+    GetProfileService.getProfile();
   }, []);
 
   return (
@@ -27,7 +21,11 @@ export default function DashboardPage() {
   )
 }
 
-export const getServerSideProps = withSSTAuth(async () => {
+export const getServerSideProps = withSSTAuth(async (ctx) => {
+  const { api } = setupApiClient(ctx);
+
+  await api.get('/me');
+
   return {
     props: { },
   }

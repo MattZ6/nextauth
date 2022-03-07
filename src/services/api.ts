@@ -1,128 +1,105 @@
-import axios, { AxiosError, HeadersDefaults, AxiosRequestHeaders, AxiosInstance } from 'axios';
-import { NextApiRequest, NextPageContext } from 'next';
-import { setCookie, parseCookies, destroyCookie } from 'nookies';
+import axios, { AxiosError } from 'axios';
+
+import { getAuthCookies, setAuthCookies } from '../utils/authCookies';
 
 import { signOut } from '../contexts/AuthContext';
 
-import { RefreshTokenService } from './user/authentication';
+import { AuthTokenError } from './errors/AuthTokenError';
+import { RefreshTokenService } from './user';
 
 type FailedRequest = {
   onSuccess: (updatedAccessToken: string) => void;
   onFailure: (error: AxiosError) => void;
 }
 
-let cookies = parseCookies();
 let isRefreshing = false;
 let failedRequestsQueue: FailedRequest[] = [];
 
-export const ACCESS_TOKEN_KEY = 'nextauth.token';
-export const REFRESH_TOKEN_KEY = 'nextauth.refresh';
+export function setupApiClient(context?: any) {
+  let cookies = getAuthCookies(context);
 
-export const api = axios.create({
-  baseURL: 'http://localhost:3333',
-  headers: {
-    Authorization: `Bearer ${cookies[ACCESS_TOKEN_KEY]}`,
+  const api = axios.create({
+    baseURL: 'http://localhost:3333',
+  });
+
+  if (cookies.token) {
+    setAuthenticationHeader(cookies.token);
   }
-});
 
-api.interceptors.response.use(
-  response => {
-    return response;
-  },
-  (error: AxiosError) => {
-    if (error.response?.status === 401) {
-      if (error.response.data?.code === 'token.expired') {
-        cookies = parseCookies();
+  api.interceptors.response.use(
+    response => {
+      return response;
+    },
+    (error: AxiosError) => {
+      if (error.response?.status === 401) {
+        if (error.response?.data?.code === 'token.expired') {
+          cookies = getAuthCookies(context);
 
-        const originalConfig = error.config;
+          const originalConfig = error.config;
 
-        const refreshToken = cookies[REFRESH_TOKEN_KEY];
+          if (!isRefreshing) {
+            isRefreshing = true;
 
-        if (!isRefreshing) {
-          isRefreshing = true;
-
-          RefreshTokenService.refreshToken({ refreshToken })
-            .then(response => {
-              setAuthCookies(api, response.data);
-
-              failedRequestsQueue.forEach(request => {
-                request.onSuccess(response.data.token);
-              });
-
-              failedRequestsQueue = [];
+            RefreshTokenService.refreshToken({ refreshToken: cookies.refreshToken! }, {
+              instance: api
             })
-            .catch(error => {
-              failedRequestsQueue.forEach(request => {
-                request.onFailure(error);
-              });
+              .then(response => {
+                setAuthCookies(response.data, context);
 
-              failedRequestsQueue = [];
-            })
-            .finally(() => {
-              isRefreshing = false;
+                setAuthenticationHeader(response.data.token);
+
+                failedRequestsQueue.forEach(request => request.onSuccess(response.data.token));
+                failedRequestsQueue = [];
+              })
+              .catch((err: AxiosError) => {
+                failedRequestsQueue.forEach(request => request.onFailure(err));
+                failedRequestsQueue = [];
+
+                if (typeof window !== 'undefined') {
+                  signOut();
+                } else {
+                  return Promise.reject(new AuthTokenError());
+                }
+              })
+              .finally(() => {
+                isRefreshing = false;
+              });
+          }
+
+          return new Promise((resolve, reject) => {
+            failedRequestsQueue.push({
+              onSuccess: (updatedAccessToken: string) => {
+                const headers =  originalConfig.headers ?? {};
+
+                headers['Authorization'] = `Bearer ${updatedAccessToken}`;
+
+                originalConfig.headers = headers;
+
+                resolve(api(originalConfig));
+              },
+              onFailure: (error: AxiosError) => {
+                reject(error);
+              },
             });
-        }
-
-        return new Promise((resolve, reject) => {
-          failedRequestsQueue.push({
-            onSuccess: (updatedAccessToken: string) => {
-              const headers =  originalConfig.headers ?? {};
-
-              headers['Authorization'] = `Bearer ${updatedAccessToken}`;
-
-              originalConfig.headers = headers;
-
-              resolve(api(originalConfig));
-            },
-            onFailure: (error: AxiosError) => {
-              reject(error);
-            },
           });
-        });
-      } else {
-        signOut();
+        } else {
+          if (process.browser) {
+            signOut();
+          } else {
+            return Promise.reject(new AuthTokenError());
+          }
+        }
       }
+
+      return Promise.reject(error);
     }
+  );
 
-    return Promise.reject(error);
+  function setAuthenticationHeader(token: string) {
+    (api.defaults.headers as any)['Authorization'] = `Bearer ${token}`;
   }
-);
 
-type NextContext = any;
-
-export function clearCookies(context?: NextContext) {
-  destroyCookie(context, ACCESS_TOKEN_KEY);
-  destroyCookie(context, REFRESH_TOKEN_KEY);
+  return { api, setAuthenticationHeader };
 }
 
-type Cookies = {
-  token?: string;
-  refreshToken?: string;
-}
 
-export function getCookies(context?: NextContext): Cookies {
-  const cookies = parseCookies(context);
-
-  const token = cookies[ACCESS_TOKEN_KEY] ?? undefined;
-  const refreshToken = cookies[REFRESH_TOKEN_KEY] ?? undefined;
-
-  return {
-    token,
-    refreshToken,
-  }
-}
-
-export function setAuthCookies(instance: AxiosInstance, data: RefreshTokenService.Authentication, context?: NextContext) {
-  setCookie(context, ACCESS_TOKEN_KEY, data.token, {
-    path: '/',
-    maxAge: 30 * 24 * 60 * 60, // 👈 30 days
-  });
-
-  setCookie(context, REFRESH_TOKEN_KEY, data.refreshToken, {
-    path: '/',
-    maxAge: 30 * 24 * 60 * 60, // 👈 30 days
-  });
-
-  (instance.defaults.headers as HeadersDefaults & AxiosRequestHeaders)['Authorization'] = `Bearer ${data.token}`;
-
-}

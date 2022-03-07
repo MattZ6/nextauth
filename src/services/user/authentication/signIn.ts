@@ -1,4 +1,6 @@
-import { api } from '../../api'
+import { AxiosInstance } from 'axios';
+
+import { api } from '../../apiClient'
 
 export namespace SignInService {
   export type Request = {
@@ -13,7 +15,13 @@ export namespace SignInService {
     roles: string[];
   }
 
-  export function signIn(data: Request) {
-    return api.post<Authentication>('/sessions', data);
+  type Options = {
+    instance?: AxiosInstance;
+  }
+
+  export function signIn(data: Request, options?: Options) {
+    const instance = options?.instance ?? api;
+
+    return instance.post<Authentication>('/sessions', data);
   }
 }

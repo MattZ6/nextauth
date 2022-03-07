@@ -1,4 +1,6 @@
-import { api } from '../../api'
+import { AxiosInstance } from 'axios';
+
+import { api } from '../../apiClient'
 
 export namespace RefreshTokenService {
   export type Request = {
@@ -12,7 +14,13 @@ export namespace RefreshTokenService {
     roles: string[];
   }
 
-  export function refreshToken(data: Request) {
-    return api.post<Authentication>('/refresh', data);
+  type Options = {
+    instance?: AxiosInstance;
+  }
+
+  export function refreshToken(data: Request, options?: Options) {
+    const instance = options?.instance ?? api;
+
+    return instance.post<Authentication>('/refresh', data);
   }
 }

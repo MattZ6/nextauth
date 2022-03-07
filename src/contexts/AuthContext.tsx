@@ -3,12 +3,8 @@ import Router from 'next/router';
 
 import { SignInService, GetProfileService } from '../services/user';
 
-import {
-  api,
-  setAuthCookies,
-  clearCookies,
-  getCookies,
-} from '../services/api';
+import { getAuthCookies, removeAuthCookies, setAuthCookies } from '../utils/authCookies';
+import { api } from '../services/apiClient';
 
 type AuthContextData = {
   isAuthenticated: boolean;
@@ -23,7 +19,7 @@ type Props = {
 }
 
 export function signOut() {
-  clearCookies();
+  removeAuthCookies();
 
   Router.replace('/');
 }
@@ -33,7 +29,7 @@ export function AuthProvider({ children }: Props) {
   const isAuthenticated = !!user;
 
   useEffect(() => {
-    const { token } = getCookies();
+    const { token } = getAuthCookies();
 
     if (!token) {
       return;
@@ -58,7 +54,9 @@ export function AuthProvider({ children }: Props) {
     try {
       const { data } = await SignInService.signIn(credentials);
 
-      setAuthCookies(api, data);
+      (api.defaults.headers as any)['Authorization'] = `Bearer ${data.token}`;
+
+      setAuthCookies(data);
 
       setUser({
         email: credentials.email,

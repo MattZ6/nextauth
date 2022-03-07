@@ -1,4 +1,6 @@
-import { api } from '../api'
+import { AxiosInstance } from 'axios';
+
+import { api } from '../apiClient';
 
 export namespace GetProfileService {
   export type User = {
@@ -7,7 +9,13 @@ export namespace GetProfileService {
     roles: string[];
   }
 
-  export function getProfile() {
-    return api.get<User>('/me');
+  type Options = {
+    instance?: AxiosInstance;
+  }
+
+  export function getProfile(options?: Options) {
+    const instance = options?.instance ?? api;
+
+    return instance.get<User>('/me');
   }
 }
