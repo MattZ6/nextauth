@@ -1,9 +1,25 @@
 import { GetServerSideProps, GetServerSidePropsContext, GetServerSidePropsResult } from 'next';
+import decode from 'jwt-decode';
+
 import { AuthTokenError } from '../services/errors/AuthTokenError';
 
 import { getAuthCookies, removeAuthCookies } from './authCookies';
+import { validateUserPermissions } from './validateUserPermissions';
 
-export function withSSTAuth<P>(fn: GetServerSideProps<P>) {
+type WithSSRAuthOptions = {
+  permissions?: string[];
+  roles?: string[];
+}
+
+type TokenData = {
+  permissions: string[];
+  roles: string[];
+  iat: number;
+  exp: number;
+  sub: string;
+}
+
+export function withSSTAuth<P>(fn: GetServerSideProps<P>, options?: WithSSRAuthOptions) {
   return async (ctx: GetServerSidePropsContext): Promise<GetServerSidePropsResult<P>> => {
     const cookies = getAuthCookies(ctx);
 
@@ -12,6 +28,25 @@ export function withSSTAuth<P>(fn: GetServerSideProps<P>) {
         redirect: {
           destination: '/',
           permanent: false,
+        }
+      }
+    }
+
+    if (options) {
+      const tokenData = decode<TokenData>(cookies.token);
+
+      const userHasValidPermissions = validateUserPermissions({
+        user: tokenData!,
+        permissions: options?.permissions,
+        roles: options?.roles,
+      });
+
+      if (!userHasValidPermissions) {
+        return {
+          redirect: {
+            destination: '/dashboard',
+            permanent: false,
+          }
         }
       }
     }
