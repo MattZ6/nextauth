@@ -9,7 +9,7 @@ import { GetProfileService } from '../services/user';
 import { withSSTAuth } from '../utils/withSSRAuth';
 
 export default function DashboardPage() {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
 
   useEffect(() => {
     GetProfileService.getProfile();
@@ -19,6 +19,8 @@ export default function DashboardPage() {
     <>
       <h1>Dashboard</h1>
       { user && <address>{user.email}</address> }
+
+      <button onClick={signOut}>Sign out</button>
 
       <Can permissions={['metrics.list']} roles={['administrator']}>
         <div>Metrics</div>
